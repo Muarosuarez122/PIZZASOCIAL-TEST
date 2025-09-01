@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Fans de ComePizzaH</title>
+<style>
+:root{
+  --bg: #0b0d10; --panel:#13171c; --panel-2:#0f1317; --text:#e8edf2; --muted:#9aa8b4;
+  --brand:#ff874e; --brand-2:#ffd166; --stroke:#1f242b; --radius:16px; --shadow:0 8px 30px rgba(0,0,0,.35);
+  --bg-light: #f5f5f5; --panel-light:#fff; --panel-2-light:#eee; --text-light:#111; --muted-light:#666;
+}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;transition:background 0.3s,color 0.3s;}
+body.light-mode{background:var(--bg-light);color:var(--text-light);}
+nav{width:200px;background:var(--panel);padding:20px;display:flex;flex-direction:column;gap:15px;transition:background 0.3s;}
+body.light-mode nav{background:var(--panel-light);}
+nav button{background:none;color:var(--text);border:none;text-align:left;font-size:1rem;cursor:pointer;transition:0.2s;color:inherit;}
+nav button:hover{color:var(--brand-2);}
+main{flex:1;padding:20px;max-width:700px;}
+.card{background:var(--panel-2);padding:16px;border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px;transition:background 0.3s,color 0.3s;position:relative;}
+body.light-mode .card{background:var(--panel-2-light);color:var(--text-light);}
+input,textarea,button{width:100%;margin:5px 0;padding:10px;border-radius:12px;border:1px solid var(--stroke);background:var(--panel-2);color:var(--text);box-sizing:border-box;transition:background 0.3s,color 0.3s;}
+body.light-mode input, body.light-mode textarea, body.light-mode button{background:var(--panel-2-light);color:var(--text-light);}
+button{cursor:pointer;background:var(--brand);color:#111;font-weight:700;border:0;transition:0.2s;}
+button:hover{background:var(--brand-2);}
+textarea{min-height:100px;resize:none;}
+#postForm{display:flex;flex-direction:column;}
+.feed-header{font-size:1.2rem;margin-bottom:10px;border-bottom:1px solid var(--stroke);padding-bottom:5px;}
+.user-info{font-size:0.9rem;color:var(--muted);margin-bottom:5px;display:flex;align-items:center;gap:10px;}
+.user-info img{width:40px;height:40px;border-radius:50%;object-fit:cover;position:absolute;top:10px;left:10px;}
+.post-content{margin-left:50px;}
+.post-actions{display:flex;gap:10px;margin-top:5px;font-size:1.2rem;cursor:pointer;}
+.post-actions span{user-select:none;}
+.comment-section{margin-left:50px;margin-top:10px;display:flex;flex-direction:column;}
+.comment{background:var(--panel);padding:5px;border-radius:8px;margin-bottom:5px;}
+body.light-mode .comment{background:var(--panel-light);color:var(--text-light);}
+.comment input{width:80%;display:inline-block;margin-top:5px;}
+.comment button{width:18%;display:inline-block;margin-top:5px;}
+#loginPage{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);display:flex;justify-content:center;align-items:center;}
+</style>
+</head>
+<body>
+
+<div id="loginPage">
+  <div class="card">
+    <h3>Iniciar sesi贸n / Registrarse</h3>
+    <input type="email" id="email" placeholder="Correo electr贸nico">
+    <input type="password" id="password" placeholder="Contrase帽a">
+    <div style="display:flex;gap:10px;">
+      <button id="registerBtn">Registrarse</button>
+      <button id="loginBtn">Iniciar sesi贸n</button>
+    </div>
+  </div>
+</div>
+
+<nav style="display:none;">
+  <button id="feedBtn">Feed</button>
+  <button id="myAccountBtn">Mi Cuenta</button>
+  <button id="settingsBtn">Configuraci贸n</button>
+</nav>
+
+<main style="display:none;">
+  <div id="feedSection">
+    <div id="postForm" class="card">
+      <textarea id="postContent" placeholder="Escribe tu mensaje..."></textarea>
+      <div style="display:flex;gap:10px;">
+        <button id="createPostBtn">Publicar</button>
+        <button id="logoutBtn">Cerrar sesi贸n</button>
+      </div>
+    </div>
+
+    <div id="posts">
+      <div class="feed-header">脷ltimas publicaciones</div>
+    </div>
+  </div>
+
+  <div id="myAccountSection" style="display:none;">
+    <div class="card">
+      <h3>Mi Cuenta</h3>
+      <p id="userEmail"></p>
+      <label>Foto de perfil:</label>
+      <input type="file" id="profilePicInput" accept="image/*">
+      <img id="profilePic" src="" alt="Foto de perfil" style="margin-top:10px;width:100px;height:100px;border-radius:50%;display:none;">
+    </div>
+  </div>
+
+  <div id="settingsSection" style="display:none;">
+    <div class="card">
+      <h3>Configuraci贸n</h3>
+      <label><input type="checkbox" id="darkModeToggle"> Modo oscuro</label>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getDatabase, ref, push, onChildAdded, get, update } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-analytics.js";
+
+const firebaseConfig = { apiKey:"AIzaSyCJ-ljwdEFc_RJW8KKDjbAqhhP4EeMLI08", authDomain:"conmepizo.firebaseapp.com", databaseURL:"https://conmepizo-default-rtdb.firebaseio.com", projectId:"conmepizo", storageBucket:"conmepizo.firebasestorage.app", messagingSenderId:"722126864059", appId:"1:722126864059:web:c61cc4b3c0a7a6f89fb39e", measurementId:"G-81BEX0DYS2" };
+
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const auth = getAuth(app);
+const db = getDatabase(app);
+const postsRef = ref(db, "posts");
+
+const loginPage = document.getElementById("loginPage");
+const nav = document.querySelector("nav");
+const main = document.querySelector("main");
+const postForm = document.getElementById("postForm");
+const postsDiv = document.getElementById("posts");
+const userEmailDisplay = document.getElementById("userEmail");
+const profilePicInput = document.getElementById("profilePicInput");
+const profilePic = document.getElementById("profilePic");
+const darkModeToggle = document.getElementById("darkModeToggle");
+
+function showSection(section){
+  document.getElementById('feedSection').style.display = section==='feed' ? 'block' : 'none';
+  document.getElementById('myAccountSection').style.display = section==='myAccount' ? 'block' : 'none';
+  document.getElementById('settingsSection').style.display = section==='settings' ? 'block' : 'none';
+}
+
+profilePicInput.addEventListener('change', ()=>{
+  const file = profilePicInput.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = e => { profilePic.src = e.target.result; profilePic.style.display='block'; };
+    reader.readAsDataURL(file);
+  }
+});
+
+darkModeToggle.addEventListener('change', ()=>{ document.body.classList.toggle('light-mode', !darkModeToggle.checked); });
+
+async function register(){ const email = document.getElementById("email").value; const password = document.getElementById("password").value; try { await createUserWithEmailAndPassword(auth,email,password); alert("Registrado exitosamente"); } catch(e){ alert(e.message); }}
+async function login(){ const email = document.getElementById("email").value; const password = document.getElementById("password").value; try { await signInWithEmailAndPassword(auth,email,password); } catch(e){ alert(e.message); }}
+async function logout(){ await signOut(auth); }
+async function createPost(){ const content = document.getElementById("postContent").value; if(!content.trim()) return; const user = auth.currentUser; await push(postsRef,{user:user.email,content,profile:profilePic.src||'',likes:{},dislikes:{},comments:{}}); document.getElementById("postContent").value=""; }
+
+function addComment(postKey,input){ const comment = input.value.trim(); if(!comment) return; const postRef = ref(db, `posts/${postKey}/comments`); push(postRef,comment); input.value=''; }
+
+async function toggleLike(postKey,type){
+  const user = auth.currentUser;
+  if(!user) return;
+  const postRef = ref(db, `posts/${postKey}/${type}`);
+  const snapshot = await get(postRef);
+  let obj = snapshot.val() || {};
+  const list = Object.keys(obj);
+  if(list.includes(user.uid)) delete obj[user.uid];
+  else obj[user.uid] = true;
+  await update(postRef,obj);
+  return Object.keys(obj).length;
+}
+
+window.toggleLike = toggleLike;
+window.addComment = addComment;
+
+document.getElementById("registerBtn").addEventListener("click", register);
+document.getElementById("loginBtn").addEventListener("click", login);
+document.getElementById("logoutBtn").addEventListener("click", logout);
+document.getElementById("feedBtn").addEventListener("click", ()=>showSection('feed'));
+document.getElementById("myAccountBtn").addEventListener("click", ()=>showSection('myAccount'));
+document.getElementById("settingsBtn").addEventListener("click", ()=>showSection('settings'));
+
+onAuthStateChanged(auth,user=>{ 
+  if(user){ 
+    loginPage.style.display='none';
+    nav.style.display='flex';
+    main.style.display='block';
+    postForm.style.display="flex"; 
+    userEmailDisplay.textContent = user.email; 
+  } else { 
+    loginPage.style.display='flex';
+    nav.style.display='none';
+    main.style.display='none';
+    userEmailDisplay.textContent = ''; 
+  }
+});
+
+function renderPost(data){
+  const post = data.val();
+  const key = data.key;
+  const div = document.createElement("div");
+  div.className="card";
+  const commentsHTML = post.comments ? Object.values(post.comments).map(c=>`<div class='comment'>${c}</div>`).join('') : '';
+  div.innerHTML=`
+    ${post.profile ? `<img src='${post.profile}'>` : ''}
+    <div class='post-content'>
+      <div class='user-info'>${post.user}</div>
+      <p>${post.content}</p>
+      <div class='post-actions'>
+        <span id='like-${key}' onclick="toggleLike('${key}','likes').then(count=>document.getElementById('like-${key}').textContent='馃憤 '+count)">馃憤 ${Object.keys(post.likes||{}).length}</span>
+        <span id='dislike-${key}' onclick="toggleLike('${key}','dislikes').then(count=>document.getElementById('dislike-${key}').textContent='馃憥 '+count)">馃憥 ${Object.keys(post.dislikes||{}).length}</span>
+      </div>
+      <div class='comment-section' id='comments-${key}'>
+        ${commentsHTML}
+        <input type='text' placeholder='Comentario...'> <button onclick="addComment('${key}',this.previousElementSibling)">Comentar</button>
+      </div>
+    </div>
+  `;
+  postsDiv.prepend(div);
+}
+
+onChildAdded(postsRef, renderPost);
+</script>
+
+</body>
+</html>
